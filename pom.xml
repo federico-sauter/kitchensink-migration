@@ -1,0 +1,38 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.mongodb.kitchensink</groupId>
+  <artifactId>kitchensink-migration</artifactId>
+  <version>1.0.0</version>
+  <packaging>pom</packaging>
+  <name>Kitchensink Migration Project</name>
+
+  <modules>
+    <module>smoke-tests</module>
+  </modules>
+
+  <build>
+    <pluginManagement>
+      <plugins>
+        <plugin>
+          <groupId>com.diffplug.spotless</groupId>
+          <artifactId>spotless-maven-plugin</artifactId>
+          <version>2.44.0</version>
+          <configuration>
+            <java>
+              <googleJavaFormat>
+                <version>1.17.0</version>
+              </googleJavaFormat>
+              <includes>
+                <include>app/src/**/*.java</include>
+                <include>smoke-tests/src/**/*.java</include>
+              </includes>
+            </java>
+          </configuration>
+        </plugin>
+      </plugins>
+    </pluginManagement>
+  </build>
+</project>

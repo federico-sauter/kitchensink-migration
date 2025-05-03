@@ -1,0 +1,61 @@
+name: Legacy Smoke Tests
+
+on:
+  push:
+    paths:
+      - 'legacy/kitchensink/**'
+      - 'smoke-tests/**'
+  pull_request:
+    paths:
+      - 'legacy/kitchensink/**'
+      - 'smoke-tests/**'
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1) Checkout your code
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # 2) Install Java 21 for both legacy & smoke-tests
+      - name: Setup Java 21
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      # 3) Start WildFly in Docker
+      - name: Start WildFly container
+        run: |
+          docker run -d --name wf -p 8080:8080 quay.io/wildfly/wildfly:latest
+          echo "Waiting for WildFly to be live…"
+          until curl -sSf http://localhost:8080/; do
+            sleep 5
+          done
+
+      # 4) Build the legacy WAR
+      - name: Build legacy WAR
+        working-directory: legacy/kitchensink
+        run: mvn clean package -DskipTests
+
+      # 5) Deploy WAR into the running container
+      - name: Deploy WAR by copying into WildFly
+        run: |
+          docker cp legacy/kitchensink/target/kitchensink.war wf:/opt/jboss/wildfly/standalone/deployments/
+          echo "Waiting for kitchensink to deploy…"
+          until curl -sSf http://localhost:8080/kitchensink/; do
+            sleep 5
+          done
+
+      # 6) Run the smoke tests
+      - name: Run smoke tests
+        working-directory: smoke-tests
+        run: mvn clean test -Dbase.url=http://localhost:8080/kitchensink/rest
+
+      # 7) Tear down the container
+      - name: Tear down WildFly
+        if: always()
+        run: docker stop wf
