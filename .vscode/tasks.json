@@ -2,9 +2,28 @@
     "version": "2.0.0",
     "tasks": [
         {
+            "label": "Reformat Java Code",
+            "type": "shell",
+            "command": "clear && mvn spotless:apply",
+            "problemMatcher": [],
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "options": {
+                "cwd": "${workspaceFolder}"
+            }
+        },
+        {
             "label": "Build Spring App",
             "type": "shell",
-            "command": "./gradlew clean build -x test",
+            "command": "clear && ./gradlew clean build -x test",
             "problemMatcher": [],
             "group": {
                 "kind": "build",
@@ -21,9 +40,9 @@
             }
         },
         {
-            "label": "Run Spring Boot App",
+            "label": "Build and Test Spring App",
             "type": "shell",
-            "command": "./gradlew bootRun",
+            "command": "clear && ./gradlew clean test",
             "problemMatcher": [],
             "group": {
                 "kind": "build",
@@ -40,13 +59,32 @@
             }
         },
         {
+            "label": "Run Spring App",
+            "type": "shell",
+            "command": "clear && ./gradlew bootRun",
+            "problemMatcher": [],
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "options": {
+                "cwd": "${workspaceFolder}/app"
+            }
+        },
+        {
             "label": "Run Smoke Tests",
             "type": "shell",
-            "command": "mvn -f smoke-tests/pom.xml clean test -Dbase.url=http://localhost:8081/kitchensink/rest",
+            "command": "clear && mvn -f smoke-tests/pom.xml clean test -Dbase.url=http://localhost:8081/kitchensink/rest",
             "problemMatcher": [],
             "group": {
                 "kind": "test",
-                "isDefault": true
+                "isDefault": false
             },
             "presentation": {
                 "echo": true,
