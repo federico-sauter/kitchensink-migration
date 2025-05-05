@@ -1,0 +1,76 @@
+name: Smoke Tests
+
+on:
+  push:
+    paths:
+      - 'legacy/kitchensink/**'
+      - 'smoke-tests/**'
+      - 'app/**'
+  pull_request:
+    paths:
+      - 'legacy/kitchensink/**'
+      - 'smoke-tests/**'
+      - 'app/**'
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target: [legacy, spring]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Java 21
+        uses: actions/setup-java@v3
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Start target app
+        id: start-target-app
+        run: |
+          if [[ "${{ matrix.target }}" == "legacy" ]]; then
+            # Legacy WildFly
+            docker run -d --name wf -p 8080:8080 quay.io/wildfly/wildfly:latest
+
+            # Build & deploy the WAR
+            mvn -f legacy/kitchensink/pom.xml clean package -DskipTests
+            docker cp legacy/kitchensink/target/kitchensink.war \
+                      wf:/opt/jboss/wildfly/standalone/deployments/
+
+            echo "Waiting for legacy GET /members…"
+            until curl -sSf http://localhost:8080/kitchensink/rest/members; do
+              sleep 5
+            done
+
+            echo "base_url=http://localhost:8080/kitchensink/rest" >> $GITHUB_OUTPUT
+          else
+            # Spring Boot
+            cd app
+            chmod +x ./gradlew
+            ./gradlew clean bootJar -x test
+            java -jar build/libs/*.jar &
+
+            echo "Waiting for spring GET /members…"
+            until curl -sSf http://localhost:8081/kitchensink/rest/members; do
+              sleep 5
+            done
+
+            echo "base_url=http://localhost:8081/kitchensink/rest" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Run smoke tests
+        run: mvn -f smoke-tests/pom.xml clean test -Dbase.url=${{ steps.start-target-app.outputs.base_url }}
+
+      - name: Tear down
+        if: always()
+        run: |
+          if [[ "${{ matrix.target }}" == "legacy" ]]; then
+            docker stop wf
+          else
+            pkill -f 'java -jar build/libs'
+          fi
