@@ -11,7 +11,6 @@ public class MemberResourceRESTServiceTest {
 
   @BeforeAll
   public static void setup() {
-    // pick up BASE_URL system property or env var, default to local dev
     String url =
         System.getProperty(
             "base.url",
@@ -29,9 +28,7 @@ public class MemberResourceRESTServiceTest {
   }
 
   private String randomEmail() {
-    String email = UUID.randomUUID().toString() + "@mailinator.com";
-    System.out.println(email);
-    return email;
+    return UUID.randomUUID().toString() + "@mailinator.com";
   }
 
   private String memberJson(String email) {
@@ -40,10 +37,11 @@ public class MemberResourceRESTServiceTest {
   }
 
   @Test
-  public void testRegisterMember() {
+  public void testRegisterMemberAndValidateFields() {
     int before = currentMemberCount();
-
     String email = randomEmail();
+
+    // 1) Create the member
     given()
         .contentType("application/json")
         .body(memberJson(email))
@@ -51,34 +49,29 @@ public class MemberResourceRESTServiceTest {
         .post("/members")
         .then()
         .statusCode(200)
-        .header("Location", not(isEmptyString()));
+        .body(isEmptyString());
 
-    int after = currentMemberCount();
-    assertEquals(before + 1, after);
-  }
+    // 2) Ensure count increased by 1
+    assertEquals(before + 1, currentMemberCount());
 
-  @Test
-  public void testListAllMembers() {
-    // use a fresh email here, too
-    String email = randomEmail();
-    given()
-        .contentType("application/json")
-        .body(memberJson(email))
-        .when()
-        .post("/members")
+    // 3) Fetch all members and assert exact fields for the newly created one
+    when()
+        .get("/members")
         .then()
-        .statusCode(200);
-
-    when().get("/members").then().statusCode(200).body("size()", greaterThanOrEqualTo(1));
+        .statusCode(200)
+        // find the object with our email and assert its properties:
+        .body("find { it.email == '%s' }.id", withArgs(email), notNullValue())
+        .body("find { it.email == '%s' }.name", withArgs(email), equalTo("Jane Doe"))
+        .body("find { it.email == '%s' }.email", withArgs(email), equalTo(email))
+        .body("find { it.email == '%s' }.phoneNumber", withArgs(email), equalTo("2125551234"));
   }
 
   @Test
-  public void testRegisterDuplicateMember() {
-    // pick one email, use it twice
+  public void testRegisterDuplicateMemberKeepsCount() {
     String email = randomEmail();
     String json = memberJson(email);
 
-    // first should succeed
+    // First registration: OK
     given()
         .contentType("application/json")
         .body(json)
@@ -89,16 +82,37 @@ public class MemberResourceRESTServiceTest {
 
     int before = currentMemberCount();
 
-    // second should conflict
+    // Second registration: conflict, same email
     given()
         .contentType("application/json")
         .body(json)
         .when()
         .post("/members")
         .then()
-        .statusCode(409);
+        .statusCode(409)
+        .body("email", equalTo("Email taken"));
 
-    int after = currentMemberCount();
-    assertEquals(before, after);
+    // And no new row was inserted
+    assertEquals(before, currentMemberCount());
+  }
+
+  @Test
+  public void testListAllMembersIncludesExisting() {
+    // Pre-seed one member for this test
+    String email = randomEmail();
+    given()
+        .contentType("application/json")
+        .body(memberJson(email))
+        .when()
+        .post("/members")
+        .then()
+        .statusCode(200);
+
+    // List and verify at least one entry matches our seed
+    when()
+        .get("/members")
+        .then()
+        .statusCode(200)
+        .body("findAll { it.email == '%s' }.size()", withArgs(email), greaterThanOrEqualTo(1));
   }
 }
