@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Kitchensink Members</title>
+    <style>
+        body {
+            font-family: "Segoe UI", sans-serif;
+            background-color: #f9f9fb;
+            color: #333;
+            margin: 0;
+            padding: 0;
+        }
+
+        header {
+            text-align: center;
+            padding: 2rem 0 1rem;
+            background-color: #ffffff;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        header img {
+            width: 140px;
+        }
+
+        h1 {
+            font-size: 1.8rem;
+            margin: 1.5rem 0 0.5rem;
+        }
+
+        main {
+            max-width: 700px;
+            margin: auto;
+            padding: 1rem;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+            background-color: #fff;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        th,
+        td {
+            padding: 0.8rem;
+            border-bottom: 1px solid #eee;
+            text-align: left;
+        }
+
+        th {
+            background-color: #f1f1f7;
+            font-weight: 600;
+        }
+
+        input {
+            width: 80%;
+            padding: 0.6rem;
+            margin: 0.5rem 0;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+
+        button {
+            padding: 0.6rem 1.2rem;
+            background-color: #5c7cfa;
+            border: none;
+            border-radius: 4px;
+            color: white;
+            font-weight: bold;
+            font-size: 1rem;
+            cursor: pointer;
+            margin-top: 0.5rem;
+        }
+
+        button:hover {
+            background-color: #4b6edc;
+        }
+
+        .form-section {
+            margin-top: 2rem;
+            background-color: #ffffff;
+            padding: 1rem;
+            border-radius: 8px;
+            box-shadow: 0 0 4px rgba(0, 0, 0, 0.05);
+        }
+
+        tr.highlight {
+            animation: flash 1.5s ease-out;
+        }
+
+        @keyframes flash {
+            0% {
+                background-color: #e0f7fa;
+            }
+
+            100% {
+                background-color: transparent;
+            }
+        }
+    </style>
+
+    <script>
+        async function loadMembers(highlightEmail = null) {
+            const res = await fetch('/kitchensink/rest/members');
+            const list = await res.json();
+            const tbody = document.querySelector('#members tbody');
+            tbody.innerHTML = '';
+            list.forEach(m => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td>${m.id}</td><td>${m.name}</td><td>${m.email}</td><td>${m.phoneNumber}</td>`;
+                if (highlightEmail && m.email === highlightEmail) {
+                    tr.classList.add('highlight');
+                }
+                tbody.appendChild(tr);
+            });
+        }
+
+        function toggleForm() {
+            const form = document.getElementById("formSection");
+            form.style.display = (form.style.display === "none" || form.style.display === "") ? "block" : "none";
+        }
+
+        async function registerMember() {
+            document.getElementById('errorBox').innerText = '';
+            const payload = {
+                name: document.getElementById('name').value,
+                email: document.getElementById('email').value,
+                phoneNumber: document.getElementById('phoneNumber').value
+            };
+            const res = await fetch('/kitchensink/rest/members', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            if (res.status === 200) {
+                loadMembers(payload.email);
+                toggleForm();
+                document.getElementById('name').value = '';
+                document.getElementById('email').value = '';
+                document.getElementById('phoneNumber').value = '';
+                document.getElementById('errorBox').innerText = '';
+            } else {
+                const err = await res.json();
+                const formatted = Object.entries(err).map(([k, v]) => `${k}: ${v}`).join('\n');
+                document.getElementById('errorBox').innerText = formatted;
+            }
+        }
+
+        window.onload = loadMembers;
+    </script>
+</head>
+
+<body>
+    <header>
+        <img src="/kitchensink/img/logo.png" alt="Kitchensink Logo">
+        <h1>Kitchensink Member Directory</h1>
+    </header>
+
+    <main>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1rem;">
+            <h2 style="margin: 0;">Members</h2>
+            <button onclick="toggleForm()" style="background-color: #38bdf8;">+ Add Member</button>
+        </div>
+
+        <table id="members">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Phone</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+
+        <div class="form-section" id="formSection" style="display: none; transition: opacity 0.3s ease;">
+            <h3>Register New Member</h3>
+            <div id="errorBox" style="color: red; margin-top: 0.5rem;"></div>
+            <input id="name" placeholder="Full Name" />
+            <input id="email" placeholder="Email Address" />
+            <input id="phoneNumber" placeholder="Phone Number" />
+            <div style="margin-top: 0.5rem;">
+                <button onclick="registerMember()">Submit</button>
+                <button onclick="toggleForm()"
+                    style="margin-left: 0.5rem; background-color: #e2e8f0; color: #333;">Cancel</button>
+            </div>
+        </div>
+
+    </main>
+</body>
+
+</html>
