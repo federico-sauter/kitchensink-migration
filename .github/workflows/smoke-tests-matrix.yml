@@ -51,19 +51,20 @@ jobs:
 
             echo "base_url=http://localhost:8080/kitchensink/rest" >> $GITHUB_OUTPUT
           else
-            # Spring Boot
+            # Spring Boot with Actuator
             cd app
             chmod +x ./gradlew
             ./gradlew clean bootJar -x test
             java -jar build/libs/*.jar &
 
-            echo "Waiting for spring GET /members…"
-            until curl -sSf http://localhost:8081/kitchensink/rest/members; do
+            echo "Waiting for spring actuator health…"
+            until curl -sSf http://localhost:8081/kitchensink/actuator/health; do
               sleep 5
             done
 
             echo "base_url=http://localhost:8081/kitchensink/rest" >> $GITHUB_OUTPUT
           fi
+
 
       - name: Run smoke tests
         run: mvn -f smoke-tests/pom.xml clean test -Dbase.url=${{ steps.start-target-app.outputs.base_url }}
