@@ -36,35 +36,22 @@ jobs:
         id: start-target-app
         run: |
           if [[ "${{ matrix.target }}" == "legacy" ]]; then
-            # Legacy WildFly
+            # Legacy WildFly in Docker
             docker run -d --name wf -p 8080:8080 quay.io/wildfly/wildfly:latest
-
-            # Build & deploy the WAR
             mvn -f legacy/kitchensink/pom.xml clean package -DskipTests
             docker cp legacy/kitchensink/target/kitchensink.war \
                       wf:/opt/jboss/wildfly/standalone/deployments/
-
-            echo "Waiting for legacy GET /members…"
-            until curl -sSf http://localhost:8080/kitchensink/rest/members; do
-              sleep 5
-            done
-
+            echo "Waiting for legacy API…"
+            until curl -sSf http://localhost:8080/kitchensink/rest/members; do sleep 5; done
             echo "base_url=http://localhost:8080/kitchensink/rest" >> $GITHUB_OUTPUT
           else
-            # Spring Boot with Actuator
-            cd app
-            chmod +x ./gradlew
-            ./gradlew clean bootJar -x test
-            java -jar build/libs/*.jar &
-
+            # Spring Boot in Docker
+            docker build -t kitchensink-app ./app
+            docker run -d --name ks -p 8081:8081 kitchensink-app
             echo "Waiting for spring actuator health…"
-            until curl -sSf http://localhost:8081/kitchensink/actuator/health; do
-              sleep 5
-            done
-
+            until curl -sSf http://localhost:8081/kitchensink/actuator/health; do sleep 5; done
             echo "base_url=http://localhost:8081/kitchensink/rest" >> $GITHUB_OUTPUT
           fi
-
 
       - name: Run smoke tests
         run: mvn -f smoke-tests/pom.xml clean test -Dbase.url=${{ steps.start-target-app.outputs.base_url }}
@@ -75,5 +62,5 @@ jobs:
           if [[ "${{ matrix.target }}" == "legacy" ]]; then
             docker stop wf
           else
-            pkill -f 'java -jar build/libs'
+            docker rm -f ks
           fi
