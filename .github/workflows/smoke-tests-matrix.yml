@@ -2,8 +2,7 @@ name: Smoke Tests
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
     paths:
       - 'legacy/kitchensink/**'
       - 'smoke-tests/**'
@@ -36,20 +35,28 @@ jobs:
         id: start-target-app
         run: |
           if [[ "${{ matrix.target }}" == "legacy" ]]; then
-            # Legacy WildFly in Docker
+            docker rm -f wf || true
             docker run -d --name wf -p 8080:8080 quay.io/wildfly/wildfly:latest
             mvn -f legacy/kitchensink/pom.xml clean package -DskipTests
             docker cp legacy/kitchensink/target/kitchensink.war \
                       wf:/opt/jboss/wildfly/standalone/deployments/
             echo "Waiting for legacy API…"
-            until curl -sSf http://localhost:8080/kitchensink/rest/members; do sleep 5; done
+            timeout=60
+            until curl -sSf http://localhost:8080/kitchensink/rest/members; do
+              sleep 5; (( timeout -= 5 ))
+              [[ $timeout -le 0 ]] && exit 1
+            done
             echo "base_url=http://localhost:8080/kitchensink/rest" >> $GITHUB_OUTPUT
           else
-            # Spring Boot in Docker
+            docker rm -f ks || true
             docker build -t kitchensink-app ./app
             docker run -d --name ks -p 8081:8081 kitchensink-app
             echo "Waiting for spring actuator health…"
-            until curl -sSf http://localhost:8081/kitchensink/actuator/health; do sleep 5; done
+            timeout=60
+            until curl -sSf http://localhost:8081/kitchensink/actuator/health; do
+              sleep 5; (( timeout -= 5 ))
+              [[ $timeout -le 0 ]] && exit 1
+            done
             echo "base_url=http://localhost:8081/kitchensink/rest" >> $GITHUB_OUTPUT
           fi
 
@@ -60,7 +67,7 @@ jobs:
         if: always()
         run: |
           if [[ "${{ matrix.target }}" == "legacy" ]]; then
-            docker stop wf
+            docker rm -f wf
           else
             docker rm -f ks
           fi

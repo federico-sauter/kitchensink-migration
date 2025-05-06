@@ -2,9 +2,9 @@ package com.mongodb.kitchensink.repository;
 
 import com.mongodb.kitchensink.model.Member;
 import java.util.List;
-import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.mongodb.repository.MongoRepository;
 
-public interface MemberRepository extends JpaRepository<Member, Long> {
+public interface MongoMemberRepository extends MongoRepository<Member, String> {
   List<Member> findAllByOrderByNameAsc();
 
   boolean existsByEmail(String email);
