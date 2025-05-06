@@ -3,6 +3,8 @@ name: Spring Boot CI
 # only run when files under `app/` change
 on:
   push:
+    branches:
+      - main
     paths:
       - 'app/**'
   pull_request:
