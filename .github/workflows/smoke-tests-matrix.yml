@@ -2,7 +2,7 @@ name: Smoke Tests
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
     paths:
       - 'legacy/kitchensink/**'
       - 'smoke-tests/**'
@@ -19,13 +19,14 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        target: [ legacy, spring ]
+        target: [legacy, spring]
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Setup Java 21 (legacy only)
+      # JDK only needed for the legacy build
+      - name: Setup Java 21
         if: matrix.target == 'legacy'
         uses: actions/setup-java@v3
         with:
@@ -35,38 +36,62 @@ jobs:
       - name: Start target app
         id: start-target-app
         run: |
+          set -euo pipefail
+
           if [[ "${{ matrix.target }}" == "legacy" ]]; then
-            docker rm -f wf  || true
+            docker rm -f wf 2>/dev/null || true
+
             docker run -d --name wf -p 8080:8080 quay.io/wildfly/wildfly:latest
-            mvn -f legacy/kitchensink/pom.xml clean package -DskipTests
+            mvn -f legacy/kitchensink/pom.xml -q clean package -DskipTests
             docker cp legacy/kitchensink/target/kitchensink.war \
-                      wf:/opt/jboss/wildfly/standalone/deployments/
-            echo "Waiting for legacy REST…"
-            timeout=60
-            until curl -sSf http://localhost:8080/kitchensink/rest/members; do
-              sleep 5; (( timeout -= 5 )) || exit 1
+                     wf:/opt/jboss/wildfly/standalone/deployments/
+
+            echo "Waiting for legacy REST …"
+            for i in {1..24}; do
+              curl -fsS http://localhost:8080/kitchensink/rest/members && break
+              sleep 5
             done
-            echo "base_url=http://localhost:8080/kitchensink/rest" >> $GITHUB_OUTPUT
+
+            echo "base_url=http://localhost:8080/kitchensink/rest" >>"$GITHUB_OUTPUT"
+
           else
-            docker rm -f ks  || true
-            docker build -t kitchensink-app ./app
-            docker run -d --name ks -p 8081:8081 kitchensink-app
-            echo "Waiting for spring REST…"
-            timeout=60
-            until curl -sSf http://localhost:8081/kitchensink/rest/members; do
-              sleep 5; (( timeout -= 5 )) || exit 1
+            # ---------- Spring + Mongo ----------
+            docker network create ks-net 2>/dev/null || true
+
+            # MongoDB
+            docker rm -f mongo 2>/dev/null || true
+            docker run -d --name mongo --network ks-net mongo:6
+
+            # wait until the server answers pings
+            echo "Waiting for Mongo …"
+            for i in {1..24}; do
+              docker exec mongo mongosh --quiet --eval "db.runCommand({ ping: 1 })" >/dev/null 2>&1 && break
+              sleep 5
             done
-            echo "base_url=http://localhost:8081/kitchensink/rest" >> $GITHUB_OUTPUT
+
+            # Spring Boot
+            docker rm -f ks 2>/dev/null || true
+            docker build -t kitchensink-app ./app
+            docker run -d --name ks --network ks-net -p 8081:8081 kitchensink-app
+
+            echo "Waiting for Spring REST …"
+            for i in {1..24}; do
+              curl -fsS http://localhost:8081/kitchensink/rest/members && break
+              sleep 5
+            done
+
+            echo "base_url=http://localhost:8081/kitchensink/rest" >>"$GITHUB_OUTPUT"
           fi
 
       - name: Run smoke tests
-        run: mvn -f smoke-tests/pom.xml clean test -Dbase.url=${{ steps.start-target-app.outputs.base_url }}
+        run: mvn -q -f smoke-tests/pom.xml clean test -Dbase.url=${{ steps.start-target-app.outputs.base_url }}
 
       - name: Tear down
         if: always()
         run: |
           if [[ "${{ matrix.target }}" == "legacy" ]]; then
-            docker rm -f wf
+            docker rm -f wf        || true
           else
-            docker rm -f ks
+            docker rm -f ks mongo  || true
+            docker network rm ks-net || true
           fi
