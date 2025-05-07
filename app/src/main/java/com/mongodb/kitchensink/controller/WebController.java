@@ -7,6 +7,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 public class WebController {
   @GetMapping("/ui/members")
   public String membersPage() {
-    return "members";     // resolves to templates/members.html
+    return "members"; // resolves to templates/members.html
   }
 }

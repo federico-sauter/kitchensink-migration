@@ -1,7 +1,7 @@
 package com.mongodb.kitchensink.controller;
 
 import com.mongodb.kitchensink.model.Member;
-import com.mongodb.kitchensink.repository.MemberRepository;
+import com.mongodb.kitchensink.service.MemberService;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Map;
@@ -16,24 +16,23 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/rest/members")
 public class MemberController {
 
-  private final MemberRepository repo;
+  private final MemberService service;
 
-  public MemberController(MemberRepository repo) {
-    this.repo = repo;
+  public MemberController(MemberService service) {
+    this.service = service;
   }
 
   @GetMapping
   public List<Member> list() {
-    return repo.findAllByOrderByNameAsc();
+    return service.findAllOrderedByNameAsc();
   }
 
   @PostMapping
   public ResponseEntity<?> register(@Valid @RequestBody Member m) {
-    if (repo.existsByEmail(m.getEmail())) {
+    if (service.existsByEmail(m.getEmail())) {
       return ResponseEntity.status(409).body(Map.of("email", "Email taken"));
     }
-    repo.save(m);
-    // legacy test expects empty body + 200
+    service.save(m);
     return ResponseEntity.ok().build();
   }
 }
