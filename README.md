@@ -2,6 +2,9 @@
 
 ![screenshot](docs/project-logo.png)
 
+[![Smoke Tests](https://github.com/federico-sauter/kitchensink-migration/actions/workflows/smoke-tests-matrix.yml/badge.svg)](https://github.com/federico-sauter/kitchensink-migration/actions/workflows/smoke-tests-matrix.yml)
+[![Spring Boot CI](https://github.com/federico-sauter/kitchensink-migration/actions/workflows/spring-app.yml/badge.svg)](https://github.com/federico-sauter/kitchensink-migration/actions/workflows/spring-app.yml)
+
 A **side‑by‑side modernization** of the classic [JBoss/WildFly *kitchensink* demo](https://github.com/jboss-developer/jboss-eap-quickstarts/tree/8.0.x/kitchensink) to a **Spring Boot 3 stack backed by MongoDB 6**.  The repository contains:
 
 | Module               | Purpose                                                                                                         |
@@ -89,9 +92,11 @@ Validation rules are enforced using Jakarta Bean Validation (@NotNull, @Size, 
 
 ## Testing & CI
 
-| Level           | Tech                           | Location                                              |
-| --------------- | ------------------------------ | ----------------------------------------------------- |
-| **Smoke / E2E** | Maven + Rest‑Assured           | `smoke-tests/` — runs against real containers in CI   |
+| Level           | Tech                           | Location                                              | Status |
+| --------------- | ------------------------------ | ----------------------------------------------------- | -------| 
+| **Spring Boot CI** | Maven | `app/` — Simple build test | [![Spring Boot CI](https://github.com/federico-sauter/kitchensink-migration/actions/workflows/spring-app.yml/badge.svg)](https://github.com/federico-sauter/kitchensink-migration/actions/workflows/spring-app.yml) |
+| **Smoke / E2E** | Maven + Rest‑Assured           | `smoke-tests/` — runs against real containers in CI   | [![Smoke Tests](https://github.com/federico-sauter/kitchensink-migration/actions/workflows/smoke-tests-matrix.yml/badge.svg)](https://github.com/federico-sauter/kitchensink-migration/actions/workflows/smoke-tests-matrix.yml) |
+
 
 ### GitHub Actions pipeline
 
