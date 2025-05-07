@@ -2,7 +2,7 @@ name: Smoke Tests
 
 on:
   push:
-    branches: [main]
+    branches: [ main ]
     paths:
       - 'legacy/kitchensink/**'
       - 'smoke-tests/**'
@@ -19,13 +19,14 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        target: [legacy, spring]
+        target: [ legacy, spring ]
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Setup Java 21
+      - name: Setup Java 21 (legacy only)
+        if: matrix.target == 'legacy'
         uses: actions/setup-java@v3
         with:
           distribution: temurin
@@ -35,27 +36,25 @@ jobs:
         id: start-target-app
         run: |
           if [[ "${{ matrix.target }}" == "legacy" ]]; then
-            docker rm -f wf || true
+            docker rm -f wf  || true
             docker run -d --name wf -p 8080:8080 quay.io/wildfly/wildfly:latest
             mvn -f legacy/kitchensink/pom.xml clean package -DskipTests
             docker cp legacy/kitchensink/target/kitchensink.war \
                       wf:/opt/jboss/wildfly/standalone/deployments/
-            echo "Waiting for legacy API…"
+            echo "Waiting for legacy REST…"
             timeout=60
             until curl -sSf http://localhost:8080/kitchensink/rest/members; do
-              sleep 5; (( timeout -= 5 ))
-              [[ $timeout -le 0 ]] && exit 1
+              sleep 5; (( timeout -= 5 )) || exit 1
             done
             echo "base_url=http://localhost:8080/kitchensink/rest" >> $GITHUB_OUTPUT
           else
-            docker rm -f ks || true
+            docker rm -f ks  || true
             docker build -t kitchensink-app ./app
             docker run -d --name ks -p 8081:8081 kitchensink-app
-            echo "Waiting for spring actuator health…"
+            echo "Waiting for spring REST…"
             timeout=60
-            until curl -sSf http://localhost:8081/kitchensink/actuator/health; do
-              sleep 5; (( timeout -= 5 ))
-              [[ $timeout -le 0 ]] && exit 1
+            until curl -sSf http://localhost:8081/kitchensink/rest/members; do
+              sleep 5; (( timeout -= 5 )) || exit 1
             done
             echo "base_url=http://localhost:8081/kitchensink/rest" >> $GITHUB_OUTPUT
           fi
