@@ -28,7 +28,6 @@ public class Member {
   @Digits(fraction = 0, integer = 12, message = "Phone number must be numeric")
   private String phoneNumber;
 
-  // getters & setters
   public String getId() {
     return id;
   }
