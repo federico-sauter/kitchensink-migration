@@ -176,6 +176,6 @@ Make sure `OPENAI_API_KEY` is set in your environment!
 
 ## Maintainer
 
-👤 **Federico Sauter** — candidate for *Senior Staff Engineer, Forward AI App Modernization @ MongoDB*
+👤 **Federico Sauter**
 
 > *Built with ❤️, an eye for backwards compatibility, and the mindset of “leave things better than you found them.”*
